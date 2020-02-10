@@ -38,10 +38,9 @@ func (command *TriggerJobCommand) Execute(args []string) error {
 		team  concourse.Team
 	)
 	if command.Team != "" {
-		var found bool
-		team, found, _ = target.FindTeam(command.Team)
-		if !found {
-			return fmt.Errorf("team '%s' does not exist", command.Team)
+		team, err = target.FindTeam(command.Team)
+		if err != nil {
+			return err
 		}
 	} else {
 		team = target.Team()

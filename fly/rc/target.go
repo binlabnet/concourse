@@ -45,7 +45,7 @@ func (e ErrVersionMismatch) Error() string {
 type Target interface {
 	Client() concourse.Client
 	Team() concourse.Team
-	FindTeam(string) (concourse.Team, bool, error)
+	FindTeam(string) (concourse.Team, error)
 	CACert() string
 	Validate() error
 	ValidateWithWarningOnly() error
@@ -272,7 +272,7 @@ func (t *target) Team() concourse.Team {
 	return t.client.Team(t.teamName)
 }
 
-func (t *target) FindTeam(teamName string) (concourse.Team, bool, error) {
+func (t *target) FindTeam(teamName string) (concourse.Team, error) {
 	return t.client.FindTeam(teamName)
 }
 

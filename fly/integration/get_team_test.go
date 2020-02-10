@@ -40,8 +40,8 @@ var _ = Describe("Fly CLI", func() {
 
 				<-sess.Exited
 				Expect(sess.ExitCode()).To(Equal(1))
-
-				Expect(sess.Err).To(gbytes.Say("error: the required flag `" + osFlag("n", "team-name") + "' was not specified"))
+				Fail("TODO: weird backtick and single quote found together. See if this test actually runs")
+				Expect(sess.Err).To(gbytes.Say("error: the required flag `" + osFlag("n", "team-name") + "` was not specified"))
 			})
 		})
 
@@ -84,7 +84,7 @@ var _ = Describe("Fly CLI", func() {
 					)
 				})
 
-				It("prints the config to stdout", func() {
+				It("prints the team config to stdout", func() {
 					flyCmd := exec.Command(flyPath, "-t", targetName, "get-team", "-n", "myTeam")
 
 					sess, err := gexec.Start(flyCmd, GinkgoWriter, GinkgoWriter)

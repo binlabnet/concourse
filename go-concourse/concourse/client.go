@@ -1,6 +1,7 @@
 package concourse
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -67,9 +68,17 @@ func (client *client) FindTeam(teamName string) (Team, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &team{
-		name:       atcTeam.Name,
-		connection: client.connection,
-		auth:       atcTeam.Auth,
-	}, nil
+
+	switch err.(type) {
+	case nil:
+		return &team{
+			name:       atcTeam.Name,
+			connection: client.connection,
+			auth:       atcTeam.Auth,
+		}, nil
+	case internal.ResourceNotFoundError:
+		return nil, fmt.Errorf("team '%s' does not exist", teamName)
+	default:
+		return nil, err
+	}
 }

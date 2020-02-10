@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -30,13 +29,9 @@ func (command *GetTeamCommand) Execute(args []string) error {
 	}
 
 	teamName := command.Team.Name()
-	team, found, err := target.FindTeam(teamName)
+	team, err := target.FindTeam(teamName)
 	if err != nil {
 		return err
-	}
-
-	if !found {
-		return errors.New("team not found")
 	}
 
 	if command.JSON {
