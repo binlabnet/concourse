@@ -28,6 +28,10 @@ type Connection interface {
 	ConnectToEventStream(request Request) (*sse.EventSource, error)
 }
 
+type Agent interface {
+	Send(request Request) (http.Response, error)
+}
+
 type Request struct {
 	RequestName        string
 	Params             rata.Params
@@ -49,6 +53,30 @@ type connection struct {
 	tracing    bool
 
 	requestGenerator *rata.RequestGenerator
+}
+
+type agent struct {
+	url        string
+	httpClient *http.Client
+	tracing    bool
+
+	requestGenerator *rata.RequestGenerator
+}
+
+func NewAgent(apiURL string, httpClient *http.Client, tracing bool) Agent {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+
+	apiURL = strings.TrimRight(apiURL, "/")
+
+	return &agent{
+		url:        apiURL,
+		httpClient: httpClient,
+		tracing:    tracing,
+
+		requestGenerator: rata.NewRequestGenerator(apiURL, atc.Routes),
+	}
 }
 
 func NewConnection(apiURL string, httpClient *http.Client, tracing bool) Connection {
@@ -191,7 +219,13 @@ func (connection *connection) populateResponse(response *http.Response, returnRe
 	}
 
 	if response.StatusCode == http.StatusForbidden {
-		return ErrForbidden
+		body, _ := ioutil.ReadAll(response.Body)
+
+		return ForbiddenError{
+			StatusCode: response.StatusCode,
+			Status:     response.Status,
+			Body:       string(body),
+		}
 	}
 
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
@@ -221,7 +255,7 @@ func (connection *connection) populateResponse(response *http.Response, returnRe
 		}
 	}
 
-	if returnResponseBody {
+	if returnResponseBody { // THIS IS SO CONFUSING
 		passedResponse.Result = response.Body
 		return nil
 	}
@@ -233,6 +267,81 @@ func (connection *connection) populateResponse(response *http.Response, returnRe
 	err := json.NewDecoder(response.Body).Decode(passedResponse.Result)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (a *agent) Send(request Request) (http.Response, error)  {
+
+	req, err := a.createHTTPRequest(request)
+	if err != nil {
+		return http.Response{}, err
+	}
+
+	return a.send(req)
+}
+
+func (a *agent) send(req *http.Request) (http.Response, error) {
+	if a.tracing {
+		b, err := httputil.DumpRequestOut(req, true)
+		if err != nil {
+			return http.Response{}, err
+		}
+
+		log.Println(string(b))
+	}
+
+	response, err := a.httpClient.Do(req)
+	if err != nil {
+		return http.Response{}, err
+	}
+
+	if a.tracing {
+		b, err := httputil.DumpResponse(response, true)
+		if err != nil {
+			return http.Response{}, err
+		}
+
+		log.Println(string(b))
+	}
+
+	//if !returnResponseBody {
+	//	defer response.Body.Close()
+	//}
+
+	return *response, nil
+}
+
+func (a *agent) createHTTPRequest(request Request) (*http.Request, error) {
+	body := a.getBody(request)
+
+	req, err := a.requestGenerator.CreateRequest(
+		request.RequestName,
+		request.Params,
+		body,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	req.URL.RawQuery = request.Query.Encode()
+
+	for h, vs := range request.Header {
+		for _, v := range vs {
+			req.Header.Add(h, v)
+		}
+	}
+
+	return req, nil
+}
+
+func (a *agent) getBody(request Request) io.Reader {
+	if request.Header != nil && request.Body != nil {
+		if _, ok := request.Header["Content-Type"]; !ok {
+			panic("You must pass a 'Content-Type' Header with a body")
+		}
+		return request.Body
 	}
 
 	return nil

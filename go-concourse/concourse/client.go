@@ -1,6 +1,7 @@
 package concourse
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -40,6 +41,7 @@ type Client interface {
 
 type client struct {
 	connection internal.Connection
+	agent      internal.Agent
 }
 
 func NewClient(apiURL string, httpClient *http.Client, tracing bool) Client {
@@ -58,27 +60,25 @@ func (client *client) HTTPClient() *http.Client {
 
 func (client *client) FindTeam(teamName string) (Team, error) {
 	var atcTeam atc.Team
-	err := client.connection.Send(internal.Request{
+	resp, err := client.agent.Send(internal.Request{
 		RequestName: atc.GetTeam,
 		Params:      rata.Params{"team_name": teamName},
-	}, &internal.Response{
-		Result: &atcTeam,
 	})
 
-	if err != nil {
-		return nil, err
-	}
-
-	switch err.(type) {
-	case nil:
+	switch resp.StatusCode {
+	case http.StatusForbidden:
+		return nil, fmt.Errorf("you do not have a role on team '%s'", teamName)
+	case http.StatusNotFound:
+		return nil, fmt.Errorf("team '%s' does not exist", teamName)
+	default:
+		err = json.NewDecoder(resp.Body).Decode(atcTeam)
+		if err != nil {
+			return nil, err
+		}
 		return &team{
 			name:       atcTeam.Name,
 			connection: client.connection,
 			auth:       atcTeam.Auth,
 		}, nil
-	case internal.ResourceNotFoundError:
-		return nil, fmt.Errorf("team '%s' does not exist", teamName)
-	default:
-		return nil, err
 	}
 }

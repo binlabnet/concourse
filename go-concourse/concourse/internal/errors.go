@@ -37,5 +37,16 @@ func (e ResourceNotFoundError) Error() string {
 	}
 }
 
+type ForbiddenError struct {
+	error
+	StatusCode int
+	Status string
+	Body string
+}
+
+func (e ForbiddenError) Error() string { // undo this addition...
+	return fmt.Sprintf("")
+}
+
 var ErrUnauthorized = errors.New("not authorized")
 var ErrForbidden = errors.New("forbidden")
