@@ -25,7 +25,7 @@ var _ = Describe("ATC Connection", func() {
 		atcServer *ghttp.Server
 
 		connection Connection
-		agent      Agent
+		agent      HTTPAgent
 
 		tracing bool
 	)
@@ -34,7 +34,7 @@ var _ = Describe("ATC Connection", func() {
 		atcServer = ghttp.NewServer()
 
 		connection = NewConnection(atcServer.URL(), nil, tracing)
-		agent = NewAgent(atcServer.URL(), nil, tracing)
+		agent = NewHTTPAgent(atcServer.URL(), nil, tracing)
 	})
 
 	Describe("#Send", func() {
@@ -357,7 +357,7 @@ var _ = Describe("ATC Connection", func() {
 				BeforeEach(func() {
 					atcServer = ghttp.NewServer()
 
-					connection = NewConnection(atcServer.URL(), nil, tracing)
+					agent = NewHTTPAgent(atcServer.URL(), nil, tracing)
 
 					atcServer.AppendHandlers(
 						ghttp.CombineHandlers(
@@ -367,7 +367,7 @@ var _ = Describe("ATC Connection", func() {
 					)
 				})
 
-				FIt("returns back 403", func() {
+				It("returns back 403", func() {
 					resp, err := agent.Send(Request{
 						RequestName: atc.DeletePipeline,
 						Params: rata.Params{
